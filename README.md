@@ -1,0 +1,2 @@
+# BI-PSI
+FIT CTU · BI-PSI · B182
