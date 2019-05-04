@@ -33,11 +33,11 @@ class Handler(threading.Thread):
                 buffer += data
 
                 # Split buffer to messages, removing the trail empty.
-                for msg in re.finditer(b'([^\a\b]+)\a\b', buffer):
-                    print(f'MESSAGE = "{msg.group(1)}"')
-                    message = msg.group(1).decode("utf-8")
+                for match in re.finditer(b'([^\a\b]+)\a\b', buffer):
+                    print(f'MESSAGE = "{match.group(1)}"')
+                    message = match.group(1).decode("utf-8")
 
-                    # Remove current message from buffer (including \a\b).
+                    # Remove the message from buffer (including \a\b).
                     buffer = buffer[len(message) + 2:]
 
                     response, is_last = self.controller.process(message)
