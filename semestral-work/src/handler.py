@@ -17,7 +17,6 @@ class Handler(threading.Thread):
         print(f'Connected to {self.address}')
 
         buffer = b''
-
         flag = True
 
         while flag:
@@ -27,6 +26,7 @@ class Handler(threading.Thread):
                 data = self.socket.recv(Constants.RECV_SIZE)
             except socket.timeout:
                 print('TIMEOUT')
+                print('break 4')
                 break
 
             if data:
@@ -46,9 +46,11 @@ class Handler(threading.Thread):
 
                     if is_last:
                         flag = False
+                        print('break 1')
                         break
             else:
-                print('Disconnecting.')
+                print('break 2')
                 break
 
+        print('Disconnecting.')
         self.socket.close()

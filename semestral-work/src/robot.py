@@ -22,18 +22,30 @@ class Robot(object):
     def __str__(self):
         return f'Robot "{self.name}" {self.coordinates} pointing {str(self.direction)}'
 
-    def is_at_start(self):
-        return (self.coordinates.x == -2) and (self.coordinates.y == 2)
-
     def set_direction(self, coords):
         if self.coordinates.y > coords.y:
-            self.direction = Direction.NORTH
-        elif self.coordinates.x > coords.x:
-            self.direction = Direction.EAST
-        elif self.coordinates.y < coords.y:
             self.direction = Direction.SOUTH
-        elif self.coordinates.x < coords.x:
+        elif self.coordinates.x > coords.x:
             self.direction = Direction.WEST
+        elif self.coordinates.y < coords.y:
+            self.direction = Direction.NORTH
+        elif self.coordinates.x < coords.x:
+            self.direction = Direction.EAST
+
+    def rotate_right(self):
+        if self.direction == Direction.NORTH:
+            self.direction = Direction.EAST
+        elif self.direction == Direction.EAST:
+            self.direction = Direction.SOUTH
+        elif self.direction == Direction.SOUTH:
+            self.direction = Direction.WEST
+        elif self.direction == Direction.WEST:
+            self.direction = Direction.NORTH
+
+    def rotate_left(self):
+        self.rotate_right()
+        self.rotate_right()
+        self.rotate_right()
 
 
 class Direction(Enum):

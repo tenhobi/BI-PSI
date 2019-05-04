@@ -11,6 +11,7 @@ class Controller(object):
         self.state = State.USER_NAME
         self.charging = False
         self.picked = 0
+        self.start_coordinates = Coordinates(-2, 2)
 
     def process(self, message):
         switcher = {
@@ -33,6 +34,25 @@ class Controller(object):
             return Constants.TIMEOUT_RECHARGING
 
         return Constants.TIMEOUT
+
+    def is_at_start(self):
+        return (self.robot.coordinates.x == self.start_coordinates.x) and (
+                self.robot.coordinates.y == self.start_coordinates.y)
+
+    def should_rotate(self):
+        # Navigate x.
+        if self.robot.coordinates.x < self.start_coordinates.x and self.robot.direction != Direction.EAST:
+            return True
+        elif self.robot.coordinates.x > self.start_coordinates.x and self.robot.direction != Direction.WEST:
+            return True
+        elif self.robot.coordinates.x == self.start_coordinates.x:
+            # Navigate y.
+            if self.robot.coordinates.y < self.start_coordinates.y and self.robot.direction != Direction.NORTH:
+                return True
+            elif self.robot.coordinates.y > self.start_coordinates.y and self.robot.direction != Direction.SOUTH:
+                return True
+
+        return False
 
     def _process_user_name(self, message):
         print('a1')
@@ -97,16 +117,26 @@ class Controller(object):
             return Constants.SERVER_SYNTAX_ERROR, True
 
         if self.robot.direction == Direction.UNKNOWN:
+            print('direction not yet set')
             # Didn't move.
             if (self.robot.coordinates.y == coords.x) and (self.robot.coordinates.y == coords.y):
+                print('position didnt change')
                 return Constants.SERVER_MOVE, False
 
             self.robot.set_direction(coords)
 
         self.robot.coordinates = coords
 
-        if self.robot.is_at_start():
+        print(self.robot)
+
+        if self.is_at_start():
             self.state = State.SEARCH_MESSAGE
+            self.robot.rotate_right()
+            return Constants.SERVER_TURN_RIGHT, True
+
+        if self.should_rotate():
+            self.robot.rotate_right()
+            return Constants.SERVER_TURN_RIGHT, False
 
         return Constants.SERVER_MOVE, False
 
