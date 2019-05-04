@@ -1,63 +1,158 @@
 from enum import Enum
 
-from src.robot import Robot
-from src.constants import KEY_SERVER, KEY_CLIENT
+from src.constants import Constants
+from src.robot import Robot, Coordinates, Direction
 
 
 class Controller(object):
     def __init__(self):
-        # Server messages.
-        self.SERVER_MOVE = "102 MOVE\a\b"
-        self.SERVER_TURN_LEFT = "103 TURN LEFT\a\b"
-        self.SERVER_TURN_RIGHT = "104 TURN RIGHT\a\b"
-        self.SERVER_PICK_UP = "105 GET MESSAGE\a\b"
-        self.SERVER_LOGOUT = "106 LOGOUT\a\b"
-        self.SERVER_OK = "200 OK\a\b"
-        self.SERVER_LOGIN_FAILED = "300 LOGIN FAILED\a\b"
-        self.SERVER_SYNTAX_ERROR = "301 SYNTAX ERROR\a\b"
-        self.SERVER_LOGIC_ERROR = "302 LOGIC ERROR\a\b"
-
-        # Client messages.
-        self.CLIENT_FULL_POWER = "FULL POWER"
-        self.CLIENT_RECHARGING = "RECHARGING"
-
-        # Client messages' limits.
-        self.CLIENT_USERNAME_LENGTH = 10
-        self.CLIENT_CONFIRMATION_LENGTH = 5
-        self.CLIENT_OK_LENGTH = 10
-        self.CLIENT_MESSAGE_LENGTH = 98
-
-        # Timeouts.
-        self.TIMEOUT = 1
-        self.TIMEOUT_CHARGING = 5
-
-        # Keys.
-        self.KEY_SERVER = KEY_SERVER
-        self.KEY_CLIENT = KEY_CLIENT
-
         # Data.
         self.robot = None
         self.state = State.USER_NAME
         self.charging = False
 
-    def process_message(self, message):
-        if self.state == State.USER_NAME:
-            self.robot = Robot(message)
-            self.state = State.CONFIRMATION
+    def process(self, message):
+        switcher = {
+            1: self._process_user_name,
+            2: self._process_confirmation,
+            3: self._process_determining_location,
+            4: self._process_determining_direction,
+            5: self._process_navigating_to_area,
+            6: self._process_search_message,
+            7: self._process_pick_up,
+        }
 
-            if self.robot.serverHash == 0:
-                return self.SERVER_SYNTAX_ERROR, True
+        method = switcher.get(int(self.state), None)
+        if method is not None:
+            return method(message)
 
-            return f'{self.robot.serverHash}\a\b', False
+        return Constants.SERVER_SYNTAX_ERROR, True
 
-        return self.SERVER_SYNTAX_ERROR, True
+    def get_timeout(self):
+        if self.charging:
+            return Constants.TIMEOUT_CHARGING
+
+        return Constants.TIMEOUT
+
+    def _process_user_name(self, message):
+        print('a1')
+        a = len(message)
+        if a > Constants.CLIENT_USERNAME_LENGTH:
+            return Constants.SERVER_SYNTAX_ERROR, True
+
+        print('a2')
+        self.robot = Robot(message)
+
+        if self.robot.serverHash == 0:
+            return Constants.SERVER_SYNTAX_ERROR, True
+
+        print('a3')
+        self.state = State.CONFIRMATION
+        return f'{self.robot.serverHash}\a\b', False
+
+    def _process_confirmation(self, message):
+        print('b1')
+        if len(message) > Constants.CLIENT_CONFIRMATION_LENGTH:
+            return Constants.SERVER_SYNTAX_ERROR, True
+
+        print('b2')
+        try:
+            input_hash = int(message)
+            print('b3')
+        except:
+            return Constants.SERVER_LOGIN_FAILED, True
+
+        if self.robot.clientHash != input_hash:
+            return Constants.SERVER_LOGIN_FAILED, True
+
+        print('b4')
+
+        self.state = State.DETERMINING_LOCATION
+        return Constants.SERVER_OK + Constants.SERVER_MOVE, False
+
+    def _process_determining_location(self, message):
+        print('c1')
+        if len(message) > Constants.CLIENT_OK_LENGTH:
+            return Constants.SERVER_SYNTAX_ERROR, True
+
+        print('c2')
+        coords = Coordinates.parse(message)
+        print('c3')
+        if coords is None:
+            return Constants.SERVER_SYNTAX_ERROR, True
+
+        print('c4')
+        self.robot.coordinates = coords
+        print(self.robot)
+        self.state = State.DETERMINING_DIRECTION
+        return Constants.SERVER_MOVE, False
+
+    def _process_determining_direction(self, message):
+        print('d1')
+        if len(message) > Constants.CLIENT_OK_LENGTH:
+            return Constants.SERVER_SYNTAX_ERROR, True
+
+        print('d2')
+        coords = Coordinates.parse(message)
+        if coords is None:
+            return Constants.SERVER_SYNTAX_ERROR, True
+
+        print('d3')
+        # Didn't move.
+        if (self.robot.coordinates.y == coords.x) and (self.robot.coordinates.y == coords.y):
+            return Constants.SERVER_MOVE, False
+
+        # Determine direction.
+        if self.robot.coordinates.y > coords.y:
+            self.robot.direction = Direction.NORTH
+        elif self.robot.coordinates.x > coords.x:
+            self.robot.direction = Direction.EAST
+        elif self.robot.coordinates.y < coords.y:
+            self.robot.direction = Direction.SOUTH
+        elif self.robot.coordinates.x < coords.x:
+            self.robot.direction = Direction.WEST
+        else:
+            return Constants.SERVER_SYNTAX_ERROR, True
+
+        self.robot.coordinates = coords
+
+        print('d4')
+        if self.robot.is_in_area():
+            self.state = State.SEARCH_MESSAGE
+        else:
+            self.state = State.NAVIGATING_TO_AREA
+
+        print('d5')
+        print(self.robot)
+        return Constants.SERVER_MOVE, False
+
+    def _process_navigating_to_area(self, message):
+        if len(message) > Constants.CLIENT_OK_LENGTH:
+            return Constants.SERVER_SYNTAX_ERROR, True
+
+        return Constants.SERVER_SYNTAX_ERROR, True
+
+    def _process_search_message(self, message):
+        if len(message) > Constants.CLIENT_OK_LENGTH:
+            return Constants.SERVER_SYNTAX_ERROR, True
+
+        return Constants.SERVER_SYNTAX_ERROR, True
+
+    def _process_pick_up(self, message):
+        if len(message) > Constants.CLIENT_MESSAGE_LENGTH:
+            return Constants.SERVER_SYNTAX_ERROR, True
+
+        return Constants.SERVER_SYNTAX_ERROR, True
 
 
 class State(Enum):
     USER_NAME = 1
     CONFIRMATION = 2
-    FIRST_MOVE = 3
-    SECOND_MOVE = 4
-    NAVIGATING_TO_ZONE = 5
-    SEARCH_ZONE = 6
+    DETERMINING_LOCATION = 3
+    DETERMINING_DIRECTION = 4
+    NAVIGATING_TO_AREA = 5
+    SEARCH_MESSAGE = 6
     PICK_UP = 7
+
+    def __int__(self):
+        return self.value
