@@ -1,3 +1,5 @@
+import re
+import socket
 import threading
 
 from src.constants import Constants
@@ -16,26 +18,37 @@ class Handler(threading.Thread):
 
         buffer = b''
 
-        while True:
+        flag = True
+
+        while flag:
             self.socket.settimeout(self.controller.get_timeout())
 
-            data = self.socket.recv(Constants.RECV_SIZE)
-            if data:
-                buffer = buffer + data
-                messages = buffer.split(b'\a\b')
+            try:
+                data = self.socket.recv(Constants.RECV_SIZE)
+            except socket.timeout:
+                print('TIMEOUT')
+                break
 
-                if len(messages) > 1:
-                    print(f'zprava = {messages[0]}')
-                    buffer = buffer[len(messages[0]) + 2:]
-                    print('alpha')
-                    response, is_last = self.controller.process(messages[0].decode("utf-8"))
-                    print('beta')
+            if data:
+                buffer += data
+
+                # Split buffer to messages, removing the trail empty.
+                for msg in re.finditer(b'([^\a\b]+)\a\b', buffer):
+                    print(f'MESSAGE = "{msg.group(1)}"')
+                    message = msg.group(1).decode("utf-8")
+
+                    # Remove current message from buffer (including \a\b).
+                    buffer = buffer[len(message) + 2:]
+
+                    response, is_last = self.controller.process(message)
                     self.socket.send(response.encode())
-                    print(f'sending ... f{response}')
+                    print(f'SENDING = "{response}"')
+
                     if is_last:
+                        flag = False
                         break
             else:
-                print('Client disconnected.')
+                print('Disconnecting.')
                 break
 
         self.socket.close()

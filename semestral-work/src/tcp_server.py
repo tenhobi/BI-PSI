@@ -16,6 +16,5 @@ class TcpServer(object):
         self.socket.listen(5)
         while True:
             client, address = self.socket.accept()
-            # client.settimeout(60)
             thread = Handler(address, client)
             thread.start()

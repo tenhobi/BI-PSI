@@ -84,7 +84,7 @@ class Controller(object):
         print('c4')
         self.robot.coordinates = coords
         print(self.robot)
-        self.state = State.DETERMINING_DIRECTION
+        self.state = State.NAVIGATING_TO_START
         return Constants.SERVER_MOVE, False
 
     def _process_navigating_to_start(self, message):
