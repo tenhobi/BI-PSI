@@ -10,16 +10,16 @@ class Controller(object):
         self.robot = None
         self.state = State.USER_NAME
         self.charging = False
+        self.picked = 0
 
     def process(self, message):
         switcher = {
             1: self._process_user_name,
             2: self._process_confirmation,
             3: self._process_determining_location,
-            4: self._process_determining_direction,
-            5: self._process_navigating_to_area,
-            6: self._process_search_message,
-            7: self._process_pick_up,
+            4: self._process_navigating_to_start,
+            5: self._process_search_message,
+            6: self._process_pick_up,
         }
 
         method = switcher.get(int(self.state), None)
@@ -30,7 +30,7 @@ class Controller(object):
 
     def get_timeout(self):
         if self.charging:
-            return Constants.TIMEOUT_CHARGING
+            return Constants.TIMEOUT_RECHARGING
 
         return Constants.TIMEOUT
 
@@ -87,50 +87,28 @@ class Controller(object):
         self.state = State.DETERMINING_DIRECTION
         return Constants.SERVER_MOVE, False
 
-    def _process_determining_direction(self, message):
-        print('d1')
+    def _process_navigating_to_start(self, message):
         if len(message) > Constants.CLIENT_OK_LENGTH:
             return Constants.SERVER_SYNTAX_ERROR, True
 
-        print('d2')
+        # TODO: add recharging?
         coords = Coordinates.parse(message)
         if coords is None:
             return Constants.SERVER_SYNTAX_ERROR, True
 
-        print('d3')
-        # Didn't move.
-        if (self.robot.coordinates.y == coords.x) and (self.robot.coordinates.y == coords.y):
-            return Constants.SERVER_MOVE, False
+        if self.robot.direction == Direction.UNKNOWN:
+            # Didn't move.
+            if (self.robot.coordinates.y == coords.x) and (self.robot.coordinates.y == coords.y):
+                return Constants.SERVER_MOVE, False
 
-        # Determine direction.
-        if self.robot.coordinates.y > coords.y:
-            self.robot.direction = Direction.NORTH
-        elif self.robot.coordinates.x > coords.x:
-            self.robot.direction = Direction.EAST
-        elif self.robot.coordinates.y < coords.y:
-            self.robot.direction = Direction.SOUTH
-        elif self.robot.coordinates.x < coords.x:
-            self.robot.direction = Direction.WEST
-        else:
-            return Constants.SERVER_SYNTAX_ERROR, True
+            self.robot.set_direction(coords)
 
         self.robot.coordinates = coords
 
-        print('d4')
-        if self.robot.is_in_area():
+        if self.robot.is_at_start():
             self.state = State.SEARCH_MESSAGE
-        else:
-            self.state = State.NAVIGATING_TO_AREA
 
-        print('d5')
-        print(self.robot)
         return Constants.SERVER_MOVE, False
-
-    def _process_navigating_to_area(self, message):
-        if len(message) > Constants.CLIENT_OK_LENGTH:
-            return Constants.SERVER_SYNTAX_ERROR, True
-
-        return Constants.SERVER_SYNTAX_ERROR, True
 
     def _process_search_message(self, message):
         if len(message) > Constants.CLIENT_OK_LENGTH:
@@ -142,17 +120,38 @@ class Controller(object):
         if len(message) > Constants.CLIENT_MESSAGE_LENGTH:
             return Constants.SERVER_SYNTAX_ERROR, True
 
-        return Constants.SERVER_SYNTAX_ERROR, True
+        # Found it!
+        if len(message) > 0:
+            return Constants.SERVER_LOGOUT, True
+
+        self.state = State.SEARCH_MESSAGE
+        return self._search()
+
+    def _search(self):
+        if self.picked in [0, 1, 2, 3, 10, 11, 12, 13, 20, 21, 22, 23]:
+            # doprava
+            ...
+        elif self.picked in [5, 6, 7, 8, 15, 16, 17, 18]:
+            # doleva
+            ...
+        elif self.picked in [4, 14]:
+            # otocitR a dolu a otocitR
+            ...
+        elif self.picked in [9, 19]:
+            # otocitL a dolu a otocitL
+            ...
+        # There was no message.
+        elif self.picked >= 24:
+            return Constants.SERVER_LOGIN_FAILED, True
 
 
 class State(Enum):
     USER_NAME = 1
     CONFIRMATION = 2
     DETERMINING_LOCATION = 3
-    DETERMINING_DIRECTION = 4
-    NAVIGATING_TO_AREA = 5
-    SEARCH_MESSAGE = 6
-    PICK_UP = 7
+    NAVIGATING_TO_START = 4
+    SEARCH_MESSAGE = 5
+    PICK_UP = 6
 
     def __int__(self):
         return self.value
