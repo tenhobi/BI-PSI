@@ -33,16 +33,16 @@ class Handler(threading.Thread):
                 buffer += data
 
                 # Split buffer to messages, removing the trail empty.
-                for match in re.finditer(b'([^\a\b]+)\a\b', buffer):
-                    print(f'MESSAGE = "{match.group(1)}"')
+                for match in re.finditer(b'(.+?)(?:\a\b)', buffer):
                     message = match.group(1).decode("utf-8")
+                    print(f'--- MESSAGE = "{match.group(1)}"', buffer, message)
 
                     # Remove the message from buffer (including \a\b).
                     buffer = buffer[len(message) + 2:]
 
                     response, is_last = self.controller.process(message)
                     self.socket.send(response.encode())
-                    print(f'SENDING = "{response}"')
+                    print(f'SENDING = "{response.encode()}"')
 
                     if is_last:
                         flag = False

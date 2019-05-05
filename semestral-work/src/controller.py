@@ -39,7 +39,11 @@ class Controller(object):
         return (self.robot.coordinates.x == self.start_coordinates.x) and (
                 self.robot.coordinates.y == self.start_coordinates.y)
 
-    def should_rotate(self):
+    def should_rotate_towards_start(self):
+        """
+        Is rotated for moving towards start while navigating to start area.
+        """
+
         # Navigate x.
         if self.robot.coordinates.x < self.start_coordinates.x and self.robot.direction != Direction.EAST:
             return True
@@ -72,10 +76,10 @@ class Controller(object):
 
     def _process_confirmation(self, message):
         print('b1')
-        if len(message) > Constants.CLIENT_CONFIRMATION_LENGTH:
+        if len(message) > Constants.CLIENT_CONFIRMATION_LENGTH or ' ' in message:
             return Constants.SERVER_SYNTAX_ERROR, True
 
-        print('b2')
+        print(f'b2 "{message}"')
         try:
             input_hash = int(message)
             print('b3')
@@ -130,11 +134,12 @@ class Controller(object):
         print(self.robot)
 
         if self.is_at_start():
-            self.state = State.SEARCH_MESSAGE
+            print('!! I am at the start.')
             self.robot.rotate_right()
-            return Constants.SERVER_TURN_RIGHT, True
+            self.state = State.SEARCH_MESSAGE
+            return Constants.SERVER_TURN_RIGHT, False
 
-        if self.should_rotate():
+        if self.should_rotate_towards_start():
             self.robot.rotate_right()
             return Constants.SERVER_TURN_RIGHT, False
 
@@ -144,7 +149,23 @@ class Controller(object):
         if len(message) > Constants.CLIENT_OK_LENGTH:
             return Constants.SERVER_SYNTAX_ERROR, True
 
-        return Constants.SERVER_SYNTAX_ERROR, True
+        coords = Coordinates.parse(message)
+        if coords is None:
+            return Constants.SERVER_SYNTAX_ERROR, True
+
+        if self.robot.coordinates.x == coords.x and self.robot.coordinates.y == coords.y:
+            print('!!!!!!!! STEJNE')
+        self.robot.coordinates = coords
+
+        print(self.robot)
+        self.state = State.PICK_UP
+
+        if self.picked in [4, 5, 14, 15]:
+            return Constants.SERVER_TURN_RIGHT + Constants.SERVER_PICK_UP, False
+        elif self.picked in [9, 10, 19, 20]:
+            return Constants.SERVER_TURN_LEFT + Constants.SERVER_PICK_UP, False
+
+        return Constants.SERVER_PICK_UP, False
 
     def _process_pick_up(self, message):
         if len(message) > Constants.CLIENT_MESSAGE_LENGTH:
@@ -155,24 +176,7 @@ class Controller(object):
             return Constants.SERVER_LOGOUT, True
 
         self.state = State.SEARCH_MESSAGE
-        return self._search()
-
-    def _search(self):
-        if self.picked in [0, 1, 2, 3, 10, 11, 12, 13, 20, 21, 22, 23]:
-            # doprava
-            ...
-        elif self.picked in [5, 6, 7, 8, 15, 16, 17, 18]:
-            # doleva
-            ...
-        elif self.picked in [4, 14]:
-            # otocitR a dolu a otocitR
-            ...
-        elif self.picked in [9, 19]:
-            # otocitL a dolu a otocitL
-            ...
-        # There was no message.
-        elif self.picked >= 24:
-            return Constants.SERVER_LOGIN_FAILED, True
+        return Constants.SERVER_MOVE, False
 
 
 class State(Enum):
