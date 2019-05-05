@@ -40,12 +40,44 @@ class Handler(threading.Thread):
                     buffer = buffer[len(message) + 2:]
 
                     response, is_last = self.controller.process(message)
+
+                    print('DONE')
+
+                    if response == Constants.SERVER_INTERNAL_RECHARGING:
+                        print('xxx recharging')
+                        self.socket.settimeout(self.controller.get_timeout())
+                        continue
+                    elif response == Constants.SERVER_INTERNAL_FULL_POWER:
+                        print('xxx full')
+                        continue
+
                     self.socket.send(response.encode())
                     print(f'SENDING = "{response.encode()}"')
 
                     if is_last:
                         flag = False
                         print('break 1')
+                        break
+                else:
+                    if buffer[-1:] == b'\a':
+                        print('AAAAA', self.controller.state, buffer)
+                        if self.controller.is_message_long(buffer[:-1].decode("utf-8")):
+                            message = buffer[:-1].decode('utf-8')
+                            if message == Constants.CLIENT_RECHARGING or message == Constants.CLIENT_FULL_POWER:
+                                continue
+
+                            print('break 5')
+                            self.socket.send(Constants.SERVER_SYNTAX_ERROR.encode())
+                            flag = False
+                            break
+                    elif self.controller.is_message_long(buffer.decode("utf-8")):
+                        message = buffer.decode('utf-8')
+                        if message == Constants.CLIENT_RECHARGING or message == Constants.CLIENT_FULL_POWER:
+                            continue
+
+                        print('break 6')
+                        self.socket.send(Constants.SERVER_SYNTAX_ERROR.encode())
+                        flag = False
                         break
             else:
                 print('break 2')
