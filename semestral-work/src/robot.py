@@ -78,7 +78,7 @@ class Coordinates(object):
 
     @staticmethod
     def parse(data):
-        match = re.match(r'^OK\s(-?\d)\s(-?\d)$', data)
+        match = re.match(r'^OK\s(-?\d+)\s(-?\d+)$', data)
         if match:
             return Coordinates(int(match.group(1)), int(match.group(2)))
 

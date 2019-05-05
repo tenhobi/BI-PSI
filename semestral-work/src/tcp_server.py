@@ -15,6 +15,8 @@ class TcpServer(object):
 
         self.socket.listen(5)
         while True:
+            self.socket.setblocking(True)
             client, address = self.socket.accept()
+            self.socket.setblocking(False)
             thread = Handler(address, client)
             thread.start()

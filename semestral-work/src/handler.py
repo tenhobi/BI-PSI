@@ -20,8 +20,6 @@ class Handler(threading.Thread):
         flag = True
 
         while flag:
-            self.socket.settimeout(self.controller.get_timeout())
-
             try:
                 data = self.socket.recv(Constants.RECV_SIZE)
             except socket.timeout:
@@ -33,7 +31,8 @@ class Handler(threading.Thread):
                 buffer += data
 
                 # Split buffer to messages, removing the trail empty.
-                for match in re.finditer(b'(.+?)(?:\a\b)', buffer):
+                for match in re.finditer(b'(.*?)(?:\a\b)', buffer):
+                    self.socket.settimeout(self.controller.get_timeout())
                     message = match.group(1).decode("utf-8")
                     print(f'--- MESSAGE = "{match.group(1)}"', buffer, message)
 
